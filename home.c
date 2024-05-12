@@ -150,10 +150,13 @@ void home_axis(enum axis_e n, int8_t dir, enum axis_endstop_e endstop_check) {
   uint32_t search_feedrate;
   search_feedrate = pgm_read_dword(&search_feedrate_P[n]);
   if (search_feedrate) {
-    // back off slowly
+    // fast back off
     t.axis[n] = 0;
-    t.F = search_feedrate;
     enqueue_home(&t, endstop_check, 0);
+    // slow to endstop
+    t.axis[n] = dir * MAX_DELTA_UM;
+    t.F = search_feedrate;
+    enqueue_home(&t, endstop_check, 1); 
   }
 
   queue_wait();
