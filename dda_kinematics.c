@@ -22,10 +22,8 @@ void
 carthesian_to_corexy(const TARGET *startpoint, const TARGET *target,
                      axes_uint32_t delta_um, axes_int32_t steps) {
 
-  delta_um[X] = (uint32_t)labs((target->axis[X] - startpoint->axis[X]) +
-                               (target->axis[Y] - startpoint->axis[Y]));
-  delta_um[Y] = (uint32_t)labs((target->axis[X] - startpoint->axis[X]) -
-                               (target->axis[Y] - startpoint->axis[Y]));
+  delta_um[X] = (uint32_t)muldiv(labs((target->axis[X] - startpoint->axis[X]) + (target->axis[Y] - startpoint->axis[Y])), 256, int_sqrt(131072));
+  delta_um[Y] = (uint32_t)muldiv(labs((target->axis[X] - startpoint->axis[X]) - (target->axis[Y] - startpoint->axis[Y])), 256, int_sqrt(131072));
   delta_um[Z] = (uint32_t)labs(target->axis[Z] - startpoint->axis[Z]);
   axes_um_to_steps_corexy(target->axis, steps);
 }
