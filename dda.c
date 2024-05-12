@@ -179,11 +179,6 @@ void dda_create(DDA *dda, const TARGET *target) {
   // We end at the passed target.
   memcpy(&(dda->endpoint), target, sizeof(TARGET));
 
-  if (DEBUG_DDA && (debug_flags & DEBUG_DDA))
-    sersendf_P(PSTR("\nCreate: X %lq  Y %lq  Z %lq  F %lu\n"),
-              dda->endpoint.axis[X], dda->endpoint.axis[Y],
-              dda->endpoint.axis[Z], dda->endpoint.F);
-
   // Apply feedrate multiplier.
   if (dda->endpoint.f_multiplier != 256 && ! dda->endstop_check) {
     dda->endpoint.F *= dda->endpoint.f_multiplier;
@@ -244,11 +239,6 @@ void dda_create(DDA *dda, const TARGET *target) {
     dda->e_direction = (target->axis[E] >= 0)?1:0;
   }
 
-  if (DEBUG_DDA && (debug_flags & DEBUG_DDA))
-    sersendf_P(PSTR("[%ld,%ld,%ld,%ld]"),
-              target->axis[X] - startpoint.axis[X], target->axis[Y] - startpoint.axis[Y],
-              target->axis[Z] - startpoint.axis[Z], target->axis[E] - startpoint.axis[E]);
-
   // Admittedly, this looks like it's overcomplicated. Why store three 32-bit
   // values if storing an axis number would be fully sufficient? Well, I'm not
   // sure, but my feeling says that when we achieve true circles and Beziers,
@@ -261,9 +251,6 @@ void dda_create(DDA *dda, const TARGET *target) {
       dda->fast_axis = i;
     }
   }
-
-  if (DEBUG_DDA && (debug_flags & DEBUG_DDA))
-    sersendf_P(PSTR(" [ts:%lu"), dda->total_steps);
 
   if (dda->total_steps == 0) {
     dda->nullmove = 1;
@@ -291,9 +278,6 @@ void dda_create(DDA *dda, const TARGET *target) {
 
     if (distance < 1)
       distance = delta_um[E];
-
-    if (DEBUG_DDA && (debug_flags & DEBUG_DDA))
-    sersendf_P(PSTR(",ds:%lu"), distance);
 
     #ifdef	ACCELERATION_TEMPORAL
       // bracket part of this equation in an attempt to avoid overflow:
@@ -413,6 +397,10 @@ void dda_create(DDA *dda, const TARGET *target) {
         acc_ramp_len(muldiv(dda->fast_um, dda->endpoint.F, distance),
                     dda->fast_axis);
 
+      #if defined KINEMATICS_COREXY
+        dda->rampup_steps = dda->rampup_steps * 2;
+      #endif
+
       if (dda->rampup_steps > dda->total_steps / 2)
         dda->rampup_steps = dda->total_steps / 2;
       dda->rampdown_steps = dda->total_steps - dda->rampup_steps;
@@ -475,7 +463,48 @@ void dda_create(DDA *dda, const TARGET *target) {
   } /* ! dda->total_steps == 0 */
 
   if (DEBUG_DDA && (debug_flags & DEBUG_DDA))
-    serial_writestr_P(PSTR("] }\n"));
+  {
+    #if defined KINEMATICS_STRAIGHT
+      sersendf_P(PSTR("DDA Debug (Straight) {\n"));
+    #elif defined KINEMATICS_COREXY
+      sersendf_P(PSTR("DDA Debug (CoreXY) {\n"));
+    #endif
+
+    sersendf_P(PSTR("\tendpoint:\n"));
+    sersendf_P(PSTR("\t\taxis[%ld,%ld,%ld,%ld]\n"),
+              dda->endpoint.axis[X], dda->endpoint.axis[Y],
+              dda->endpoint.axis[Z], dda->endpoint.axis[E]);
+    sersendf_P(PSTR("\t\tF[%lu]\n"), dda->endpoint.F);
+    //sersendf_P(PSTR("\t\te_multiplier[%u]\n"), dda->endpoint.e_multiplier);
+    //sersendf_P(PSTR("\t\tf_multiplier[%u]\n"), dda->endpoint.f_multiplier);
+    //sersendf_P(PSTR("\t\te_relative[%su]\n"), dda->endpoint.e_relative);
+    sersendf_P(PSTR("\tdelta (steps)[%lu,%lu,%lu,%lu]\n"),
+              dda->delta[X], dda->delta[Y],
+              dda->delta[Z], dda->delta[E]);
+    sersendf_P(PSTR("\tfast_axis[%su]\n"), dda->fast_axis);
+    sersendf_P(PSTR("\ttotal_steps[%lu]\n"), dda->total_steps);
+    sersendf_P(PSTR("\tfast_um[%lu]\n"), dda->fast_um);
+    sersendf_P(PSTR("\tc[%lx]\n"), dda->c);
+
+    #ifdef ACCELERATION_RAMPING
+    sersendf_P(PSTR("\tRamping:\n"));
+    sersendf_P(PSTR("\t\tn[%lx]\n"), dda->n);
+    sersendf_P(PSTR("\t\trampup_steps[%lu]\n"), dda->rampup_steps);
+    sersendf_P(PSTR("\t\trampdown_steps[%lu]\n"), dda->rampdown_steps);
+    sersendf_P(PSTR("\t\tc_min[%lx]\n"), dda->c_min);
+    #endif
+
+    #ifdef LOOKAHEAD
+    sersendf_P(PSTR("\tLookahead:\n"));
+    sersendf_P(PSTR("\t\tdistance[%lu]\n"), dda->distance);
+    sersendf_P(PSTR("\t\tcrossF[%lu]\n"), dda->crossF);
+    sersendf_P(PSTR("\t\tstart_steps[%lu]\n"), dda->start_steps);
+    sersendf_P(PSTR("\t\tend_steps[%lu]\n"), dda->end_steps);
+    sersendf_P(PSTR("\t\tid[%su]\n"), dda->id);
+    #endif
+
+    sersendf_P(PSTR("}\n"));
+  }
 }
 
 /** Start a prepared DDA
