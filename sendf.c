@@ -69,46 +69,46 @@ void sendf_P(void (*writechar)(uint8_t), PGM_P format_P, ...) {
 					j = 4;
 					break;
 				case 'u':
-          if (j == 1)
-            write_uint8(writechar, (uint8_t)GET_ARG(uint16_t));
-          else if (j == 2)
-            write_uint16(writechar, (uint16_t)GET_ARG(uint16_t));
+					if (j == 1)
+						write_uint8(writechar, (uint8_t)GET_ARG(uint16_t));
+					else if (j == 2)
+						write_uint16(writechar, (uint16_t)GET_ARG(uint16_t));
 					else
-            write_uint32(writechar, GET_ARG(uint32_t));
-					j = 0;
+            			write_uint32(writechar, GET_ARG(uint32_t));
+						j = 0;
 					break;
 				case 'd':
-          if (j == 1)
-            write_int8(writechar, (int8_t)GET_ARG(int16_t));
-          else if (j == 2)
-            write_int16(writechar, (int16_t)GET_ARG(int16_t));
+					if (j == 1)
+						write_int8(writechar, (int8_t)GET_ARG(int16_t));
+					else if (j == 2)
+						write_int16(writechar, (int16_t)GET_ARG(int16_t));
 					else
-            write_int32(writechar, GET_ARG(int32_t));
-					j = 0;
-					break;
+						write_int32(writechar, GET_ARG(int32_t));
+						j = 0;
+						break;
 				case 'c':
-          writechar((uint8_t)GET_ARG(uint16_t));
+					writechar((uint8_t)GET_ARG(uint16_t));
 					j = 0;
 					break;
 				case 'x':
-          writechar('0');
-          writechar('x');
-          if (j == 1)
-            write_hex8(writechar, (uint8_t)GET_ARG(uint16_t));
-          else if (j == 2)
-            write_hex16(writechar, (uint16_t)GET_ARG(uint16_t));
+					writechar('0');
+					writechar('x');
+					if (j == 1)
+						write_hex8(writechar, (uint8_t)GET_ARG(uint16_t));
+					else if (j == 2)
+						write_hex16(writechar, (uint16_t)GET_ARG(uint16_t));
 					else
-            write_hex32(writechar, GET_ARG(uint32_t));
-					j = 0;
+            			write_hex32(writechar, GET_ARG(uint32_t));
+						j = 0;
 					break;
 /*				case 'p':
-          serwrite_hex16(writechar, GET_ARG(uint16_t));*/
+          			serwrite_hex16(writechar, GET_ARG(uint16_t));*/
 				case 'q':
-          write_int32_vf(writechar, GET_ARG(uint32_t), 3);
+          			write_int32_vf(writechar, GET_ARG(uint32_t), 3);
 					j = 0;
 					break;
 				default:
-          writechar(c);
+          			writechar(c);
 					j = 0;
 					break;
 			}
@@ -118,7 +118,7 @@ void sendf_P(void (*writechar)(uint8_t), PGM_P format_P, ...) {
 				j = 2;
 			}
 			else {
-        writechar(c);
+        		writechar(c);
 			}
 		}
 	}
