@@ -320,13 +320,33 @@ void dda_create(DDA *dda, const TARGET *target) {
       //       ACCELERATION_TEMPORAL above. This should make re-calculating the
       //       allowed F easier.
       c_limit = 0;
-      for (i = X; i < AXIS_COUNT; i++) {
-        c_limit_calc = (delta_um[i] * 2400L) /
+      #if defined KINEMATICS_STRAIGHT
+      // Same calculations for each axis for Straight
+        for (i = X; i < AXIS_COUNT; i++) {
+          c_limit_calc = (delta_um[i] * 2400L) /
+                        dda->total_steps * (F_CPU / 40000) /
+                        pgm_read_dword(&maximum_feedrate_P[i]);
+          if (c_limit_calc > c_limit) c_limit = c_limit_calc;
+        }
+      #elif defined KINEMATICS_COREXY
+      // Separated calculation for CoreXY axises (A and B) and standart calculations for Z and E
+        c_limit_calc = (muldiv(labs(delta_um[X] + delta_um[Y]), int_sqrt(131072), 256) * 1200L) /
                       dda->total_steps * (F_CPU / 40000) /
-                      pgm_read_dword(&maximum_feedrate_P[i]);
-        if (c_limit_calc > c_limit)
-          c_limit = c_limit_calc;
-      }
+                      pgm_read_dword(&maximum_feedrate_P[X]);
+        if (c_limit_calc > c_limit) c_limit = c_limit_calc;
+        c_limit_calc = (muldiv(labs(delta_um[X] - delta_um[Y]), int_sqrt(131072), 256) * 1200L) /
+                      dda->total_steps * (F_CPU / 40000) /
+                      pgm_read_dword(&maximum_feedrate_P[Y]);
+        if (c_limit_calc > c_limit) c_limit = c_limit_calc;
+
+        for (i = Z; i < AXIS_COUNT; i++) {
+          c_limit_calc = (delta_um[i] * 2400L) /
+                        dda->total_steps * (F_CPU / 40000) /
+                        pgm_read_dword(&maximum_feedrate_P[i]);
+          if (c_limit_calc > c_limit) c_limit = c_limit_calc;
+        }
+      #endif
+
     #endif
     #ifdef ACCELERATION_REPRAP
       // c is initial step time in IOclk ticks
