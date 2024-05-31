@@ -481,6 +481,9 @@ void dda_create(DDA *dda, const TARGET *target) {
     sersendf_P(PSTR("\tdelta (steps)[%lu,%lu,%lu,%lu]\n"),
               dda->delta[X], dda->delta[Y],
               dda->delta[Z], dda->delta[E]);
+    sersendf_P(PSTR("\tdelta (um)[%lu,%lu,%lu,%lu]\n"),
+              delta_um[X], delta_um[Y],
+              delta_um[Z], delta_um[E]);
     sersendf_P(PSTR("\tfast_axis[%su]\n"), dda->fast_axis);
     sersendf_P(PSTR("\ttotal_steps[%lu]\n"), dda->total_steps);
     sersendf_P(PSTR("\tfast_um[%lu]\n"), dda->fast_um);
