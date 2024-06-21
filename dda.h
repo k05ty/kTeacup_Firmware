@@ -149,6 +149,10 @@ typedef struct {
   uint8_t           axis_to_step;    ///< axis to be stepped on the next interrupt
   #endif
 
+  #ifdef PRESSURE_ADV
+  uint32_t adv_steps;
+  #endif
+
   /// Small variables. Many CPUs can access 32-bit variables at word or double
   /// word boundaries only and fill smaller variables in between with gaps,
   /// so keep small variables grouped together to reduce the amount of these

@@ -347,6 +347,17 @@ void dda_create(DDA *dda, const TARGET *target) {
         }
       #endif
 
+      #ifdef PRESSURE_ADV
+      if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0) // For PRESSURE_ADV. Set E max feedrate for all axes, because E travels advance steps with max speed
+      {
+        c_limit_calc = (delta_um[dda->fast_axis] * 2400L) /
+                      dda->total_steps * (F_CPU / 40000) /
+                      pgm_read_dword(&maximum_feedrate_P[E]);
+        if (c_limit_calc > c_limit)
+          c_limit = c_limit_calc;
+      }
+      #endif
+
     #endif
     #ifdef ACCELERATION_REPRAP
       // c is initial step time in IOclk ticks
@@ -473,6 +484,18 @@ void dda_create(DDA *dda, const TARGET *target) {
         dda->c = c_limit;
     #endif
 
+    #ifdef PRESSURE_ADV
+      if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0)
+      {
+        uint32_t c_extruder = muldiv(dda->c_min, dda->total_steps, dda->delta[E]); // extruder's velocity (ticks/step)
+        dda->adv_steps = dda->endpoint.k / c_extruder; // mm/mm/tick / ticks/step => ticks / ticks/step => ticks * step/ticks
+      }
+      else
+      {
+        dda->adv_steps = 0;
+      }
+    #endif
+
     // next dda starts where we finish
     memcpy(&startpoint, &dda->endpoint, sizeof(TARGET));
     if (startpoint.e_relative)
@@ -524,6 +547,11 @@ void dda_create(DDA *dda, const TARGET *target) {
     sersendf_P(PSTR("\t\tstart_steps[%lu]\n"), dda->start_steps);
     sersendf_P(PSTR("\t\tend_steps[%lu]\n"), dda->end_steps);
     sersendf_P(PSTR("\t\tid[%su]\n"), dda->id);
+    #endif
+
+    #ifdef PRESSURE_ADV
+    sersendf_P(PSTR("\tPressure advance:\n"));
+    sersendf_P(PSTR("\t\tadv_steps[%lu]\n"), dda->adv_steps);
     #endif
 
     sersendf_P(PSTR("}\n"));
