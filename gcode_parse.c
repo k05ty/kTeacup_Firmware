@@ -212,6 +212,11 @@ uint8_t gcode_parse_char(uint8_t c) {
 					// if this is heater PID stuff, multiply by PID_SCALE because we divide by PID_SCALE later on
 					else if ((next_target.M >= 130) && (next_target.M <= 132))
 						next_target.S = decfloat_to_int(&read_digit, PID_SCALE);
+          #ifdef PRESSURE_ADV
+          // for pressure adv k-factor. Further need to be multiplied on (F_CPU / 1000) to get ticks
+          else if (next_target.M == 90)
+            next_target.S = decfloat_to_int(&read_digit, 1000);
+          #endif
 					else
 						next_target.S = decfloat_to_int(&read_digit, 1);
 					if (DEBUG_ECHO && (debug_flags & DEBUG_ECHO))

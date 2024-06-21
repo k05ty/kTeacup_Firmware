@@ -32,6 +32,11 @@ uint8_t tool;
 /// the tool to be changed when we get an M6
 uint8_t next_tool;
 
+#ifdef PRESSURE_ADV
+// pressure advance k-factor
+uint32_t k = 0;
+#endif
+
 /************************************************************************//**
 
   \brief Processes command stored in global \ref next_target.
@@ -86,6 +91,10 @@ void process_gcode_command() {
 	#ifdef	Z_MAX
     if (next_target.target.axis[Z] > (int32_t)(Z_MAX * 1000.))
       next_target.target.axis[Z] = (int32_t)(Z_MAX * 1000.);
+	#endif
+
+	#ifdef PRESSURE_ADV
+	next_target.target.k = k;
 	#endif
 
 	// The GCode documentation was taken from http://reprap.org/wiki/Gcode .
@@ -499,6 +508,20 @@ void process_gcode_command() {
 				// No wait_queue() needed.
 				next_target.option_e_relative = 1;
 				break;
+
+			#ifdef PRESSURE_ADV
+				// --- M90: set pressure advance k-factor
+			case 90:
+				if (next_target.seen_S)
+				{
+					k = next_target.S * (F_CPU / 1000);
+					//k = muldiv(next_target.S, F_CPU, 1000);
+					next_target.target.k = k;
+				}
+
+				sersendf_P(PSTR("\nK-factor value: %lu\n"), next_target.target.k);
+				break;
+			#endif
 
 			// M3/M101- extruder on
 			case 3:
