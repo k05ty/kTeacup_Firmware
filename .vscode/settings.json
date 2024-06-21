@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "dda_kinematics.h": "c",
+        "stdint.h": "c"
+    }
+}

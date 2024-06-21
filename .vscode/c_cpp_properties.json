@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "kTeacup",
+            "includePath": [
+                "/usr/lib/avr/include"
+            ],
+            "browse": {
+                "path": []
+            },
+            "defines": [
+                "__AVR_ATmega328P__"
+            ],
+            "compilerPath": "/usr/bin/avr-gcc",
+            "compilerArgs": [],
+            "cStandard": "c11",
+            "cppStandard": "gnu++11",
+            "intelliSenseMode": "${default}",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}

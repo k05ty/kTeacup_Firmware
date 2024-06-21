@@ -7,13 +7,13 @@ build
 private/
 temporal.png
 temporal_data
-config.h
-thermistortable.h
-Makefile
+# config.h
+# thermistortable.h
+# Makefile
 sim
 doc
 datalog.out
-configtool.ini
+# configtool.ini
 tags
 
 # Atmel Studio project files.
