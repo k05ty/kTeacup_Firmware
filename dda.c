@@ -489,6 +489,7 @@ void dda_create(DDA *dda, const TARGET *target) {
       {
         uint32_t c_extruder = muldiv(dda->c_min, dda->total_steps, dda->delta[E]); // extruder's velocity (ticks/step)
         dda->adv_steps = dda->endpoint.k / c_extruder; // mm/mm/tick / ticks/step => ticks / ticks/step => ticks * step/ticks
+        //dda->adv_steps = dda->endpoint.k / dda->c_min;
       }
       else
       {
@@ -602,6 +603,11 @@ void dda_start(DDA *dda) {
       move_state.time[Z] = move_state.time[E] = 0UL;
   #endif
 
+  #ifdef PRESSURE_ADV
+  move_state.adv_start = dda->adv_steps;
+  move_state.e_step = 0;
+  #endif
+
   // Ensure this DDA starts.
   dda->live = 1;
 
@@ -656,6 +662,31 @@ void dda_step(DDA *dda) {
         move_state.steps[Z]--;
       }
     }
+    #ifdef PRESSURE_ADV
+        move_state.e_step = 0;
+        if (move_state.steps[E]) {
+            move_state.counter[E] -= dda->delta[E];
+            if (move_state.counter[E] < 0) {
+                move_state.counter[E] += dda->total_steps;
+                move_state.e_step = 1;
+                move_state.steps[E]--;
+            }
+            else if (move_state.adv_start > 0)
+            {
+                move_state.e_step = 1;
+                move_state.adv_start--;
+            }
+        }
+        
+        if (dda->adv_steps > move_state.steps[dda->fast_axis])
+        {
+            if (move_state.e_step) move_state.e_step = 0;
+            else move_state.e_step = 1;
+        }
+        if (move_state.e_step) e_step();
+        if (dda->adv_steps == move_state.steps[dda->fast_axis]) e_direction(0);
+        
+    #else
     if (move_state.steps[E]) {
       move_state.counter[E] -= dda->delta[E];
       if (move_state.counter[E] < 0) {
@@ -664,6 +695,7 @@ void dda_step(DDA *dda) {
         move_state.steps[E]--;
       }
     }
+    #endif
   #endif
 
   #ifdef ACCELERATION_REPRAP

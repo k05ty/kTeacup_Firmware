@@ -72,6 +72,11 @@ typedef struct {
   /// Endstop handling.
   uint8_t endstop_stop;         ///< Stop due to endstop trigger
   uint8_t debounce_count_x, debounce_count_y, debounce_count_z;
+
+  #ifdef PRESSURE_ADV
+  uint32_t adv_start;
+  uint8_t e_step;
+  #endif
 } MOVE_STATE;
 
 /**
