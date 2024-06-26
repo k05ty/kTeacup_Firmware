@@ -684,7 +684,7 @@ void dda_step(DDA *dda) {
             else move_state.e_step = 1;
         }
         if (move_state.e_step) e_step();
-        if (dda->adv_steps == move_state.steps[dda->fast_axis]) e_direction(0);
+        if (dda->adv_steps > 0 && dda->adv_steps == move_state.steps[dda->fast_axis]) e_direction(0);
         
     #else
     if (move_state.steps[E]) {
