@@ -1,0 +1,6 @@
+M83
+G1 X0 Y0 Z0 E0
+;G4 P500
+G1 X20 Y10 E0.7982 F1200 ; print line
+G1 X60 Y30 E1.5965 F4200 ; print line
+G1 X80 Y40 E0.7982 F1200 ; print line

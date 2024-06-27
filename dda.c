@@ -424,12 +424,15 @@ void dda_create(DDA *dda, const TARGET *target) {
         dda->endpoint.F = 65535;
 
       // Acceleration ramps are based on the fast axis, not the combined speed.
-      dda->rampup_steps =
-        acc_ramp_len(muldiv(dda->fast_um, dda->endpoint.F, distance),
-                    dda->fast_axis);
-
-      #if defined KINEMATICS_COREXY
-        dda->rampup_steps = dda->rampup_steps * 2;
+      #if defined KINEMATICS_STRAIGHT
+        dda->rampup_steps = acc_ramp_len(muldiv(dda->fast_um, dda->endpoint.F, distance), dda->fast_axis);
+      #elif defined KINEMATICS_COREXY
+        if (dda->fast_axis == X || dda->fast_axis == Y) {
+          dda->rampup_steps = acc_ramp_len(muldiv(dda->fast_um, dda->endpoint.F * int_sqrt(131072), distance * 256), dda->fast_axis);
+        }
+        else {
+          dda->rampup_steps = acc_ramp_len(muldiv(dda->fast_um, dda->endpoint.F, distance), dda->fast_axis);
+        }
       #endif
 
       if (dda->rampup_steps > dda->total_steps / 2)

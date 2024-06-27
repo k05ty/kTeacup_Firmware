@@ -76,10 +76,21 @@ void dda_find_crossing_speed(DDA *prev, DDA *current) {
   //       these 8 muldiv()s.
   //       Caveat: bail out condition above and some other non-continuous
   //               situations might need some extra code for handling.
-  for (i = X; i < AXIS_COUNT; i++) {
-    prevF[i] = muldiv(prev->delta[i], F, prev->total_steps);
-    currF[i] = muldiv(current->delta[i], F, current->total_steps);
-  }
+  #if defined KINEMATICS_STRAIGHT
+    for (i = X; i < AXIS_COUNT; i++) {
+      prevF[i] = muldiv(prev->delta[i], F, prev->total_steps);
+      currF[i] = muldiv(current->delta[i], F, current->total_steps);
+    }
+  #elif defined KINEMATICS_COREXY
+    for (i = X; i < Z; i++) {
+      prevF[i] = muldiv(prev->delta[i], F * 256, prev->total_steps * int_sqrt(131072));
+      currF[i] = muldiv(current->delta[i], F * 256, current->total_steps * int_sqrt(131072));
+    }
+    for (i = Z; i < AXIS_COUNT; i++) {
+      prevF[i] = muldiv(prev->delta[i], F, prev->total_steps);
+      currF[i] = muldiv(current->delta[i], F, current->total_steps);
+    }
+  #endif
 
   if (DEBUG_DDA && (debug_flags & DEBUG_DDA))
     sersendf_P(PSTR("prevF: %ld  %ld  %ld  %ld\ncurrF: %ld  %ld  %ld  %ld\n"),
@@ -214,10 +225,27 @@ void dda_join_moves(DDA *prev, DDA *current) {
     //
     // All calculations here are done along the fast axis, so recalculate
     // F and crossF to match this, too.
-    prev_F = muldiv(prev->fast_um, prev_F, prev->distance);
-    this_F = muldiv(current->fast_um, current->endpoint.F, current->distance);
-    crossF = muldiv(current->fast_um, crossF, current->distance);
-
+    #if defined KINEMATICS_STRAIGHT
+      prev_F = muldiv(prev->fast_um, prev_F, prev->distance);
+      this_F = muldiv(current->fast_um, current->endpoint.F, current->distance);
+      crossF = muldiv(current->fast_um, crossF, current->distance);
+    #elif defined KINEMATICS_COREXY
+      if (prev->fast_axis == X || prev->fast_axis == Y) {
+        prev_F = muldiv(prev->fast_um, prev_F * int_sqrt(131072), prev->distance * 256);
+      }
+      else {
+        prev_F = muldiv(prev->fast_um, prev_F, prev->distance);
+      }
+      if (current->fast_axis == X || current->fast_axis == Y) {
+        this_F = muldiv(current->fast_um, current->endpoint.F * int_sqrt(131072), current->distance * 256);
+        crossF = muldiv(current->fast_um, crossF * int_sqrt(131072), current->distance * 256);
+      }
+      else {
+        this_F = muldiv(current->fast_um, current->endpoint.F, current->distance);
+        crossF = muldiv(current->fast_um, crossF, current->distance);
+      }
+    #endif
+    
     prev_F_in_steps = acc_ramp_len(prev_F, this_fast_axis);
     this_F_in_steps = acc_ramp_len(this_F, this_fast_axis);
     crossF_in_steps = acc_ramp_len(crossF, this_fast_axis);
