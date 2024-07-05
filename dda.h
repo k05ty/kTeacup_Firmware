@@ -74,6 +74,8 @@ typedef struct {
   uint8_t debounce_count_x, debounce_count_y, debounce_count_z;
 
   #ifdef PRESSURE_ADV
+  int32_t adv_counter;
+  uint32_t adv_steps;
   uint32_t adv_start;
   uint8_t e_step;
   #endif
@@ -155,7 +157,11 @@ typedef struct {
   #endif
 
   #ifdef PRESSURE_ADV
-  uint32_t adv_steps;
+  uint32_t adv_start;
+  uint32_t adv_end;
+  uint32_t adv_delta;
+  uint32_t c_extruder;
+  uint32_t rampup_steps_before_lookahead;
   #endif
 
   /// Small variables. Many CPUs can access 32-bit variables at word or double
