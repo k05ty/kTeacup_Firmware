@@ -23,6 +23,7 @@
 #include "home.h"
 #include "bed_leveling.h"
 //#include "graycode.c"
+#include "dda_pressureadv.h"
 
 #ifdef DC_EXTRUDER
   #include "heater.h"
@@ -347,17 +348,6 @@ void dda_create(DDA *dda, const TARGET *target) {
         }
       #endif
 
-      #ifdef PRESSURE_ADV
-      if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0) // For PRESSURE_ADV. Set E max feedrate for all axes, because E travels advance steps with max speed
-      {
-        c_limit_calc = (delta_um[dda->fast_axis] * 2400L) /
-                      dda->total_steps * (F_CPU / 40000) /
-                      pgm_read_dword(&maximum_feedrate_P[E]);
-        if (c_limit_calc > c_limit)
-          c_limit = c_limit_calc;
-      }
-      #endif
-
     #endif
     #ifdef ACCELERATION_REPRAP
       // c is initial step time in IOclk ticks
@@ -441,6 +431,11 @@ void dda_create(DDA *dda, const TARGET *target) {
 
       #ifdef LOOKAHEAD
         dda->distance = distance;
+
+        #ifdef PRESSURE_ADV
+        dda->rampup_steps_before_lookahead = dda->rampup_steps;
+        #endif
+
         dda_find_crossing_speed(prev_dda, dda);
         // TODO: this should become a reverse-stepping through the existing
         //       movement queue to allow higher speeds for short moves.
@@ -487,17 +482,27 @@ void dda_create(DDA *dda, const TARGET *target) {
         dda->c = c_limit;
     #endif
 
+    
     #ifdef PRESSURE_ADV
-      if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0)
-      {
-        uint32_t c_extruder = muldiv(dda->c_min, dda->total_steps, dda->delta[E]); // extruder's velocity (ticks/step)
-        dda->adv_steps = dda->endpoint.k / c_extruder; // mm/mm/tick / ticks/step => ticks / ticks/step => ticks * step/ticks
-        //dda->adv_steps = dda->endpoint.k / dda->c_min;
-      }
-      else
-      {
-        dda->adv_steps = 0;
-      }
+    dda_calculate_adv(dda);
+    dda_join_adv(prev_dda, dda);
+      // if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0)
+      // {
+      //   // This block calculates amount of advanced steps. Result is slightly less that it should be, but i think it's ok
+      //   // With G1 X20 E0.7982 F1200 its result is 15 (have to be 18)
+      //   // With G1 X40 E1.5965 F4200 its result is 55 (have to be 64)
+      //   uint32_t c_extruder = muldiv(dda->c_min, dda->total_steps, dda->delta[E]); // extruder's velocity (ticks/step)
+      //   dda->adv_start = dda->endpoint.k / c_extruder; // mm/mm/tick / ticks/step => ticks / ticks/step => ticks * step/ticks
+
+      //   // This block calculates delta steps for advanced steps as like it is one more axis that have to travel all adv_steps during acceleration
+      //   dda->adv_delta = muldiv(dda->total_steps, dda->adv_start, dda->rampup_steps);
+      // }
+      // else
+      // {
+      //   dda->adv_start = 0;
+      //   dda->adv_delta = 0;
+      // }
+      // dda->adv_end = dda->adv_start;
     #endif
 
     // next dda starts where we finish
@@ -555,7 +560,9 @@ void dda_create(DDA *dda, const TARGET *target) {
 
     #ifdef PRESSURE_ADV
     sersendf_P(PSTR("\tPressure advance:\n"));
-    sersendf_P(PSTR("\t\tadv_steps[%lu]\n"), dda->adv_steps);
+    sersendf_P(PSTR("\t\tadv_start[%lu]\n"), dda->adv_start);
+    sersendf_P(PSTR("\t\tadv_end[%lu]\n"), dda->adv_end);
+    sersendf_P(PSTR("\t\tadv_delta[%lu]\n"), dda->adv_delta);
     #endif
 
     sersendf_P(PSTR("}\n"));
@@ -607,7 +614,9 @@ void dda_start(DDA *dda) {
   #endif
 
   #ifdef PRESSURE_ADV
-  move_state.adv_start = dda->adv_steps;
+  move_state.adv_counter = -(dda->total_steps >> 1);
+  move_state.adv_steps = dda->adv_delta;
+  move_state.adv_start = dda->adv_start;
   move_state.e_step = 0;
   #endif
 
@@ -666,29 +675,35 @@ void dda_step(DDA *dda) {
       }
     }
     #ifdef PRESSURE_ADV
-        move_state.e_step = 0;
-        if (move_state.steps[E]) {
-            move_state.counter[E] -= dda->delta[E];
-            if (move_state.counter[E] < 0) {
-                move_state.counter[E] += dda->total_steps;
-                move_state.e_step = 1;
-                move_state.steps[E]--;
-            }
-            else if (move_state.adv_start > 0)
-            {
-                move_state.e_step = 1;
-                move_state.adv_start--;
-            }
+    if (move_state.steps[E]) {
+      move_state.counter[E] -= dda->delta[E];
+      if (move_state.counter[E] < 0) {
+        move_state.counter[E] += dda->total_steps;
+        //e_step();
+        e_direction(1);
+        move_state.e_step = 1;
+        move_state.steps[E]--;
+      }
+    }
+    if (move_state.adv_steps) {
+      move_state.adv_counter -= dda->adv_delta;
+      if (move_state.adv_counter < 0) {
+        move_state.adv_counter += dda->total_steps;
+        if (move_state.adv_start > 0 && move_state.e_step == 0) {
+          move_state.e_step = 1;
+          move_state.adv_start--;
         }
-        
-        if (dda->adv_steps > move_state.steps[dda->fast_axis])
-        {
-            if (move_state.e_step) move_state.e_step = 0;
-            else move_state.e_step = 1;
+        else if (move_state.adv_steps <= dda->adv_end) {
+          move_state.e_step = 1;
+          e_direction(0);
         }
-        if (move_state.e_step) e_step();
-        if (dda->adv_steps > 0 && dda->adv_steps == move_state.steps[dda->fast_axis]) e_direction(0);
-        
+        move_state.adv_steps--;
+      }
+    }
+    if (move_state.e_step == 1) {
+      e_step();
+      move_state.e_step = 0;
+    }
     #else
     if (move_state.steps[E]) {
       move_state.counter[E] -= dda->delta[E];
