@@ -3,33 +3,25 @@
 #ifdef PRESSURE_ADV
 
 void dda_calculate_adv(DDA* dda) {
-    if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0)
-    {
-        // This block calculates amount of advanced steps. Result is slightly less that it should be, but i think it's ok
-        // With G1 X20 E0.7982 F1200 its result is 15 (have to be 18)
-        // With G1 X40 E1.5965 F4200 its result is 55 (have to be 64)
-        dda->c_extruder = muldiv(dda->c_min, dda->total_steps, dda->delta[E]); // extruder's velocity (ticks/step)
-        dda->adv_start = dda->endpoint.k / dda->c_extruder; // mm/mm/tick / ticks/step => ticks / ticks/step => ticks * step/ticks
+    // This block calculates amount of advanced steps.
+    // With G1 X20 E0.7982 F1200 its result is 19 (have to be 18)
+    // With G1 X40 E1.5965 F4200 its result is 65 (have to be 64)
+    //dda->c_extruder = muldiv(dda->c_min, dda->total_steps, dda->delta[E]); // extruder's velocity (ticks/step)
+    dda->F_extruder = muldiv(dda->delta[E], dda->endpoint.F, dda->total_steps);
 
-        // This block calculates delta steps for advanced steps as like it is one more axis that have to travel all adv_steps during acceleration
-        dda->adv_delta = muldiv(dda->total_steps, dda->adv_start, dda->rampup_steps_before_lookahead);
-        if (dda->adv_delta > dda->total_steps)
-            dda->adv_delta = dda->total_steps;
-    }
-    else
-    {
-        dda->adv_start = 0;
-        dda->adv_delta = 0;
-    }
-    dda->adv_end = dda->adv_start;
+    //dda->adv_start = dda->endpoint.k / dda->c_extruder; // mm/mm/tick / ticks/step => ticks / ticks/step => ticks * step/ticks
+    dda->adv_start = muldiv(dda->F_extruder * dda->endpoint.k, um_to_steps(1000, E), 60000);
+
+    // This block calculates delta steps for advanced steps as like it is one more axis that have to travel all adv_steps during acceleration
+    dda->adv_delta = muldiv(dda->total_steps, dda->adv_start, dda->rampup_steps_before_lookahead);
+    if (dda->adv_delta > dda->total_steps)
+        dda->adv_delta = dda->total_steps;
 }
 
 void dda_join_adv(DDA* prev, DDA* current) {
     uint8_t prev_id, current_id;
-    uint32_t prev_c_extruder, current_c_extruder, cross_c_extruder;
+    uint32_t prev_F_extruder, current_F_extruder, cross_F_extruder;
     uint32_t prev_adv_end, current_adv_start;
-    uint32_t cross_F_extruder;
-    DDA* slower;
 
     // Bail out if there's nothing to join.
     if (!prev || current->crossF == 0)
@@ -44,41 +36,42 @@ void dda_join_adv(DDA* prev, DDA* current) {
         ATOMIC_END
 
         // Calculations
-        slower = prev;
-        if (current->endpoint.F < slower->endpoint.F)
-            slower = current;
-
-        cross_F_extruder = muldiv(current->delta[E], slower->endpoint.F, current->total_steps);
         
-        prev_c_extruder = prev->c_extruder;
-        current_c_extruder = current->c_extruder;
-        cross_c_extruder = (((slower->distance * 2400) / slower->total_steps) * (F_CPU / 40000)) / cross_F_extruder;
+        prev_F_extruder = prev->F_extruder;
+        current_F_extruder = current->F_extruder;
+        cross_F_extruder = muldiv(current->delta[E], current->crossF, current->total_steps);
 
-        if (prev_c_extruder < cross_c_extruder) {
+        if (prev_F_extruder > cross_F_extruder) {
             // If we are decelerating from prev to cross (prev F_E > cross F_E)
-            prev_adv_end = current->endpoint.k / (cross_c_extruder - prev_c_extruder);
+            prev_adv_end = muldiv((prev_F_extruder - cross_F_extruder) * current->endpoint.k, um_to_steps(1000, E), 60000);
         }
         else {
             prev_adv_end = 0;
         }
 
-        if (current_c_extruder < cross_c_extruder) {
+        if (current_F_extruder > cross_F_extruder) {
             // If we are accelerating from cross to current (current F_E > cross F_E)
-            current_adv_start = current->endpoint.k / (cross_c_extruder - current_c_extruder);
+            current_adv_start = muldiv((current_F_extruder - cross_F_extruder) * current->endpoint.k, um_to_steps(1000, E), 60000);
         }
         else {
+            current_adv_start = 0;
+        }
+
+        if (prev_F_extruder == cross_F_extruder && current_adv_start == cross_F_extruder) {
+            prev_adv_end = 0;
             current_adv_start = 0;
         }
 
         //sersendf_P(PSTR("\tprev_F_extruder[%lu]\n"), muldiv(prev->delta[E], prev->endpoint.F, prev->total_steps));
         //sersendf_P(PSTR("\tcurrent_F_extruder[%lu]\n"), muldiv(current->delta[E], current->endpoint.F, current->total_steps));
 
-        sersendf_P(PSTR("\tprev_c_extruder[%lx]\n"), prev_c_extruder);
-        sersendf_P(PSTR("\tcurrent_c_extruder[%lx]\n"), current_c_extruder);
-        sersendf_P(PSTR("\tcross_F_extruder[%lu]\n"), cross_F_extruder);
-        sersendf_P(PSTR("\tcross_c_extruder[%lx]\n"), cross_c_extruder);
-        sersendf_P(PSTR("\tprev_adv_end[%lu]\n"), prev_adv_end);
-        sersendf_P(PSTR("\tcurrent_adv_start[%lu]\n"), current_adv_start);
+        if (DEBUG_DDA && (debug_flags & DEBUG_DDA)) {
+            sersendf_P(PSTR("\tprev_F_extruder[%lu]\n"), prev_F_extruder);
+            sersendf_P(PSTR("\tcurrent_F_extruder[%lu]\n"), current_F_extruder);
+            sersendf_P(PSTR("\tcross_F_extruder[%lu]\n"), cross_F_extruder);
+            sersendf_P(PSTR("\tprev_adv_end[%lu]\n"), prev_adv_end);
+            sersendf_P(PSTR("\tcurrent_adv_start[%lu]\n"), current_adv_start);
+        }
 
         #ifdef DEBUG
         uint8_t timeout = 0;
@@ -101,12 +94,6 @@ void dda_join_adv(DDA* prev, DDA* current) {
         #endif
         ATOMIC_END
 
-        // sersendf_P(PSTR("Pressure advance {\n"));
-        // sersendf_P(PSTR("\tprev_id[%su]\n"), prev_id);
-        // sersendf_P(PSTR("\tprev_adv_start[%lu]\n"), prev->adv_start);
-        // sersendf_P(PSTR("\tcurrent_id[%su]\n"), current_id);
-        // sersendf_P(PSTR("\tcurrent_adv_start[%lu]\n"), current->adv_start);
-        // sersendf_P(PSTR("}\n"));
         // If we were not fast enough, any feedback will happen outside the atomic block:
         #ifdef DEBUG
         if (timeout) {

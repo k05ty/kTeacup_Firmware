@@ -484,25 +484,20 @@ void dda_create(DDA *dda, const TARGET *target) {
 
     
     #ifdef PRESSURE_ADV
-    dda_calculate_adv(dda);
-    dda_join_adv(prev_dda, dda);
-      // if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0)
-      // {
-      //   // This block calculates amount of advanced steps. Result is slightly less that it should be, but i think it's ok
-      //   // With G1 X20 E0.7982 F1200 its result is 15 (have to be 18)
-      //   // With G1 X40 E1.5965 F4200 its result is 55 (have to be 64)
-      //   uint32_t c_extruder = muldiv(dda->c_min, dda->total_steps, dda->delta[E]); // extruder's velocity (ticks/step)
-      //   dda->adv_start = dda->endpoint.k / c_extruder; // mm/mm/tick / ticks/step => ticks / ticks/step => ticks * step/ticks
+    if (dda->delta[E] > 0 && dda->e_direction == 1 && dda->endpoint.k > 0)
+    {
+      dda_calculate_adv(dda);
+      dda->adv_end = dda->adv_start;
+      dda_join_adv(prev_dda, dda);
+    }
+    else
+    {
+      dda->adv_start = 0;
+      dda->adv_end = dda->adv_start;
+      dda->adv_delta = 0;
+    }
+    
 
-      //   // This block calculates delta steps for advanced steps as like it is one more axis that have to travel all adv_steps during acceleration
-      //   dda->adv_delta = muldiv(dda->total_steps, dda->adv_start, dda->rampup_steps);
-      // }
-      // else
-      // {
-      //   dda->adv_start = 0;
-      //   dda->adv_delta = 0;
-      // }
-      // dda->adv_end = dda->adv_start;
     #endif
 
     // next dda starts where we finish

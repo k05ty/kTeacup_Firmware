@@ -213,7 +213,7 @@ uint8_t gcode_parse_char(uint8_t c) {
 					else if ((next_target.M >= 130) && (next_target.M <= 132))
 						next_target.S = decfloat_to_int(&read_digit, PID_SCALE);
           #ifdef PRESSURE_ADV
-          // for pressure adv k-factor. Further need to be multiplied on (F_CPU / 1000) to get ticks
+          // for pressure adv k-factor (milliseconds). Further need to be multiplied on (F_CPU / 1000) to get ticks or divided by 1000 to get seconds
           else if (next_target.M == 90)
             next_target.S = decfloat_to_int(&read_digit, 1000);
           #endif

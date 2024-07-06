@@ -514,7 +514,8 @@ void process_gcode_command() {
 			case 90:
 				if (next_target.seen_S)
 				{
-					k = next_target.S * (F_CPU / 1000);
+					//k = next_target.S * (F_CPU / 1000); // ticks
+					k = next_target.S; // milliseconds
 					//k = muldiv(next_target.S, F_CPU, 1000);
 					next_target.target.k = k;
 				}

@@ -160,7 +160,7 @@ typedef struct {
   uint32_t adv_start;
   uint32_t adv_end;
   uint32_t adv_delta;
-  uint32_t c_extruder;
+  uint32_t F_extruder;
   uint32_t rampup_steps_before_lookahead;
   #endif
 
