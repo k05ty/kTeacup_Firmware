@@ -675,7 +675,7 @@ void dda_step(DDA *dda) {
       if (move_state.counter[E] < 0) {
         move_state.counter[E] += dda->total_steps;
         //e_step();
-        e_direction(1);
+        e_direction(dda->e_direction);
         move_state.e_step = 1;
         move_state.steps[E]--;
       }
@@ -690,7 +690,7 @@ void dda_step(DDA *dda) {
         }
         else if (move_state.adv_steps <= dda->adv_end) {
           move_state.e_step = 1;
-          e_direction(0);
+          e_direction(!(dda->e_direction));
         }
         move_state.adv_steps--;
       }
