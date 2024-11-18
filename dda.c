@@ -670,34 +670,33 @@ void dda_step(DDA *dda) {
       }
     }
     #ifdef PRESSURE_ADV
-    if (move_state.steps[E]) {
+    move_state.e_step = 0; // E Step flag
+    if (move_state.steps[E]) { // Normal E step
       move_state.counter[E] -= dda->delta[E];
       if (move_state.counter[E] < 0) {
-        move_state.counter[E] += dda->total_steps;
-        //e_step();
         e_direction(dda->e_direction);
+        move_state.counter[E] += dda->total_steps;
         move_state.e_step = 1;
         move_state.steps[E]--;
       }
     }
-    if (move_state.adv_steps) {
+    if (move_state.adv_steps) { // Advanced E step
       move_state.adv_counter -= dda->adv_delta;
       if (move_state.adv_counter < 0) {
-        move_state.adv_counter += dda->total_steps;
-        if (move_state.adv_start > 0 && move_state.e_step == 0) {
+        if (move_state.adv_steps <= dda->adv_end) { // On deceleration
+          e_direction(!(dda->e_direction));
+          move_state.e_step = !move_state.e_step; // '0' if there is a normal step, '1' if isn't
+        }
+        else if (move_state.adv_start > 0 && move_state.e_step == 0) { // On acceleration
           move_state.e_step = 1;
           move_state.adv_start--;
         }
-        else if (move_state.adv_steps <= dda->adv_end) {
-          move_state.e_step = 1;
-          e_direction(!(dda->e_direction));
-        }
+        move_state.adv_counter += dda->total_steps;
         move_state.adv_steps--;
       }
     }
     if (move_state.e_step == 1) {
       e_step();
-      move_state.e_step = 0;
     }
     #else
     if (move_state.steps[E]) {
