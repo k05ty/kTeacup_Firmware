@@ -510,7 +510,7 @@ void process_gcode_command() {
 				break;
 
 			#ifdef PRESSURE_ADV
-				// --- M90: set pressure advance k-factor
+				// --- M90: set pressure advance k-factor ---
 			case 90:
 				if (next_target.seen_S)
 				{
@@ -520,7 +520,7 @@ void process_gcode_command() {
 					next_target.target.k = k;
 				}
 
-				sersendf_P(PSTR("\nK-factor value: %lu\n"), next_target.target.k);
+				sersendf_P(PSTR("\nK-factor value: %lq\n"), next_target.target.k);
 				break;
 			#endif
 
